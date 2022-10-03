@@ -1,0 +1,8 @@
+{
+  "tasks": {
+    "test": "deno test ./modules/",
+    "compile": "deno run ./cmd/super_tiny_compiler.ts",
+    "install": "deno install --allow-read ./cmd/super_tiny_compiler.ts --name super-tiny-compiler"
+  },
+  "importMap": "./import_map.json"
+}
