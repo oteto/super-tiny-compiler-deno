@@ -10,7 +10,7 @@ function main() {
 `;
   const tokens = tokenize(input);
   const ast = parse(tokens);
-  const newAst = transform(ast as any);
+  const newAst = transform(ast);
   const output = codeGenerate(newAst);
   console.log(output);
 }

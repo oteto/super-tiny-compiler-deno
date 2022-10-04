@@ -1,17 +1,27 @@
 import { NODE_TYPE } from "~/modules/node.ts";
-import { type AST, ASTNode } from "~/modules/parser.ts";
+import { type ASTNode } from "~/modules/parser.ts";
 import { traverse } from "~/modules/traversar.ts";
 
-export type Expression = {
+type CalleeNode = {
+  type: typeof NODE_TYPE.IDENTIFIER;
+  name: string;
+};
+
+type Expression = {
   type: typeof NODE_TYPE.CALL_EXPRESSION;
-  callee: {
-    type: typeof NODE_TYPE.IDENTIFIER;
-    name: string;
-  };
+  callee: CalleeNode;
   arguments: TransformedASTNode[];
 };
 
+const CONTEXT = Symbol("__context");
+
+type Context = {
+  [CONTEXT]?: TransformedASTNode[];
+};
+
 export type TransformedASTNode =
+  | CalleeNode
+  | Expression
   | {
     type: typeof NODE_TYPE.NUMBER_LITERAL;
     value: string;
@@ -20,34 +30,33 @@ export type TransformedASTNode =
     type: typeof NODE_TYPE.STRING_LITERAL;
     value: string;
   }
-  | Expression
   | {
     type: typeof NODE_TYPE.EXPRESSION_STATEMENT;
     expression: Expression;
+  }
+  | {
+    type: typeof NODE_TYPE.PROGRAM;
+    body: TransformedASTNode[];
   };
 
-export type TransformedAST = {
-  type: "Program";
-  body: TransformedASTNode[];
-};
-
-export function transform(
-  ast: AST & { _context: TransformedAST["body"] },
-): TransformedAST {
-  const newAST: TransformedAST = {
-    type: "Program",
+export function transform(ast: ASTNode & Context): TransformedASTNode {
+  if (ast.type !== NODE_TYPE.PROGRAM) {
+    throw new TypeError(`not program node. got: ${ast.type}`);
+  }
+  const newAST: TransformedASTNode = {
+    type: NODE_TYPE.PROGRAM,
     body: [],
   };
 
-  ast._context = newAST.body;
+  ast[CONTEXT] = newAST.body;
 
   traverse(ast, {
     [NODE_TYPE.CALL_EXPRESSION]: {
-      enter(node, parent: AST | ASTNode | null) {
+      enter(node: ASTNode & Context, parent) {
         if (parent === null || node.type !== NODE_TYPE.CALL_EXPRESSION) {
           return;
         }
-        const expression = {
+        const expression: Expression = {
           type: NODE_TYPE.CALL_EXPRESSION,
           callee: {
             type: NODE_TYPE.IDENTIFIER,
@@ -55,48 +64,53 @@ export function transform(
           },
           arguments: [],
         };
-        (node as unknown as { _context: TransformedAST["body"] })._context =
-          expression.arguments;
-        if (parent.type !== NODE_TYPE.CALL_EXPRESSION) {
-          (parent as unknown as { _context: TransformedAST["body"] })._context
-            .push({
-              type: NODE_TYPE.EXPRESSION_STATEMENT,
-              expression: expression,
-            });
+        node[CONTEXT] = expression.arguments;
+        if (!hasContext(parent)) {
           return;
         }
-        if ("_context" in parent) {
-          (parent as { _context: TransformedAST["body"] })._context.push(
-            expression,
-          );
+        if (parent.type !== NODE_TYPE.CALL_EXPRESSION) {
+          parent[CONTEXT]?.push({
+            type: NODE_TYPE.EXPRESSION_STATEMENT,
+            expression: expression,
+          });
+          return;
         }
+        parent[CONTEXT]?.push(expression);
       },
     },
     [NODE_TYPE.NUMBER_LITERAL]: {
-      enter(node, parent: AST | ASTNode | null) {
-        if (parent === null || node.type !== NODE_TYPE.NUMBER_LITERAL) {
+      enter(node, parent) {
+        if (
+          parent === null || node.type !== NODE_TYPE.NUMBER_LITERAL ||
+          !hasContext(parent)
+        ) {
           return;
         }
-        (parent as unknown as { _context: TransformedAST["body"] })._context
-          .push({
-            type: NODE_TYPE.NUMBER_LITERAL,
-            value: node.value,
-          });
+        parent[CONTEXT]?.push({
+          type: NODE_TYPE.NUMBER_LITERAL,
+          value: node.value,
+        });
       },
     },
     [NODE_TYPE.STRING_LITERAL]: {
-      enter(node, parent: AST | ASTNode | null) {
-        if (parent === null || node.type !== NODE_TYPE.STRING_LITERAL) {
+      enter(node, parent) {
+        if (
+          parent === null || node.type !== NODE_TYPE.STRING_LITERAL ||
+          !hasContext(parent)
+        ) {
           return;
         }
-        (parent as unknown as { _context: TransformedAST["body"] })._context
-          .push({
-            type: NODE_TYPE.STRING_LITERAL,
-            value: node.value,
-          });
+        parent[CONTEXT]?.push({
+          type: NODE_TYPE.STRING_LITERAL,
+          value: node.value,
+        });
       },
     },
   });
 
   return newAST;
 }
+
+const hasContext = (node: ASTNode): node is ASTNode & Context => {
+  return CONTEXT in node;
+};

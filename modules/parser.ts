@@ -11,14 +11,12 @@ export type ASTNode = {
   type: typeof NODE_TYPE.CALL_EXPRESSION;
   value: string;
   params: ASTNode[];
-};
-
-export type AST = {
-  type: "Program";
+} | {
+  type: typeof NODE_TYPE.PROGRAM;
   body: ASTNode[];
 };
 
-export function parse(tokens: Token[]): AST {
+export function parse(tokens: Token[]): ASTNode {
   let currentIndex = 0;
 
   function walk(): ASTNode {
@@ -84,8 +82,8 @@ export function parse(tokens: Token[]): AST {
     }
   }
 
-  const ast: AST = {
-    type: "Program",
+  const ast: ASTNode = {
+    type: NODE_TYPE.PROGRAM,
     body: [],
   };
 

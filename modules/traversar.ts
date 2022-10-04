@@ -1,38 +1,23 @@
 import { NODE_TYPE } from "~/modules/node.ts";
-import { type AST, type ASTNode } from "~/modules/parser.ts";
-
-type Node = AST | ASTNode;
+import { type ASTNode } from "~/modules/parser.ts";
 
 type VisitorMethods = {
-  enter?: (node: Node, parent: Node | null) => void;
-  exit?: (node: Node, parent: Node | null) => void;
+  enter?: (node: ASTNode, parent: ASTNode | null) => void;
+  exit?: (node: ASTNode, parent: ASTNode | null) => void;
 };
 
-type Visitor =
-  & {
-    [
-      P in typeof NODE_TYPE[
-        keyof Pick<
-          typeof NODE_TYPE,
-          "NUMBER_LITERAL" | "STRING_LITERAL" | "CALL_EXPRESSION"
-        >
-      ]
-    ]: VisitorMethods;
-  }
-  & {
-    [
-      P in typeof NODE_TYPE[keyof Pick<typeof NODE_TYPE, "PROGRAM">]
-    ]?: undefined;
-  };
+type Visitor = {
+  [P in typeof NODE_TYPE[keyof typeof NODE_TYPE]]?: VisitorMethods;
+};
 
-export function traverse(ast: AST, visitor: Visitor): void {
-  function traverseArray(array: Node[], parent: Node): void {
+export function traverse(ast: ASTNode, visitor: Visitor): void {
+  function traverseArray(array: ASTNode[], parent: ASTNode): void {
     for (const child of array) {
       traverseNode(child, parent);
     }
   }
 
-  function traverseNode(node: Node, parent: Node | null): void {
+  function traverseNode(node: ASTNode, parent: ASTNode | null): void {
     const methods = visitor[node.type];
     methods?.enter?.(node, parent);
 

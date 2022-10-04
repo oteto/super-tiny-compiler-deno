@@ -1,15 +1,9 @@
 import { NODE_TYPE } from "~/modules/node.ts";
-import {
-  type Expression,
-  type TransformedAST,
-  type TransformedASTNode,
-} from "~/modules/transformer.ts";
+import { type TransformedASTNode } from "~/modules/transformer.ts";
 
-type Node = TransformedAST | TransformedASTNode | Expression["callee"];
-
-export function codeGenerate(node: Node): string {
+export function codeGenerate(node: TransformedASTNode): string {
   switch (node.type) {
-    case "Program": {
+    case NODE_TYPE.PROGRAM: {
       return node.body.map(codeGenerate).join("\n");
     }
     case NODE_TYPE.NUMBER_LITERAL: {
